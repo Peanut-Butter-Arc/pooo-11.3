@@ -16,18 +16,23 @@ class EstadoLibro(Enum):
 
 class Usuario:
     def __init__(self,idUsuario,nombre,librosApartados):
+
         self.__idUsuario = idUsuario
         self.nombre = nombre
         self.librosApartados = librosApartados
+
     def agregarPrestamo():
         pass
+
     def mostrarPrestamo():
         pass
+
     def __str__(self):
         pass
         
 class Libro:
     def __init__(self,isbn,titulo,ejemplares,estado):
+
         self.__isbn = isbn 
         self.titulo =titulo
         self.__ejemplares = ejemplares
@@ -39,6 +44,9 @@ class Libro:
     def restarEjemplares():
         pass
 
+    def getTitulo():
+        pass
+
     def __str__(self):
         pass
 
@@ -47,13 +55,17 @@ class Biblioteca:
         self.catalogo = catalogo
         self.usuarios = usuarios
 
-    def AgregarLibro(self):
-        pass
+    def AgregarLibro(self,titulo,isbn,ejemplares):
+        self.catalogo.nombre = titulo
+        self.catalogo.isbn = isbn
+        self.catalogo.ejemplares = ejemplares
 
     def buscarCatalogo(self):
-        pass
+        print Libro1.get
+        
     def buscarLibro(self):
         pass
+        
     def verDisponibilidad(self):
         pass
     def apartarLibro(self):

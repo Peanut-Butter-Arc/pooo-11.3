@@ -61,18 +61,34 @@ class Biblioteca:
         self.catalogo.ejemplares = ejemplares
 
     def buscarCatalogo(self):
-        print Libro1.get
+        pass
         
     def buscarLibro(self):
         pass
         
     def verDisponibilidad(self):
-        pass
+        print(f"La cantidad disponible del libro: {self.getnombre()} es de {self.verDisponibilidad}")
+
     def apartarLibro(self):
-        pass
+        try:
+            if (disponibilidad <=0):
+                raise ValueError("Lo sentimos este libro no esta disponible")
+            else:
+                disponibilidad = disponibilidad-1
+
+        except ValueError:
+            print("Lo sentimos hubo un error en el sistema")
+            
+            
+            
+
     def registrarUsuario(self):
-        pass
-        menu()
+        x= input("Ingrese el nombre del usuario")
+        y = input("Ingrese el id del usuario")
+        z = input("Ingrese la cantidad de libros apartados del usuario")
+
+        usuario1 =Usuario(x,y,z)
+        
 
         
 catalogoDiccionario = {

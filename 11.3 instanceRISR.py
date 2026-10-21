@@ -33,7 +33,7 @@ class Libro:
         self.__ejemplares = ejemplares
         self.estado = estado
 
-    def obtenerEjemplares():
+    def getEjemplares():
         pass
 
     def restarEjemplares():
@@ -47,7 +47,20 @@ class Biblioteca:
         self.catalogo = catalogo
         self.usuarios = usuarios
 
-    def Agregar
+    def AgregarLibro(self):
+        pass
+
+    def buscarCatalogo(self):
+        pass
+    def buscarLibro(self):
+        pass
+    def verDisponibilidad(self):
+        pass
+    def apartarLibro(self):
+        pass
+    def registrarUsuario(self):
+        pass
+        menu()
 
         
 catalogoDiccionario = {

@@ -1,8 +1,8 @@
 def main():
     print("Bienvenido al sistema de biblioteca")
 
-    biblioteca = Biblioteca()
-    biblioteca.menu()
+    biblioteca1 = Biblioteca()
+    biblioteca1.menu()
 
 if __name__ ++ "__main__":
     main()
@@ -88,9 +88,41 @@ class Biblioteca:
         z = input("Ingrese la cantidad de libros apartados del usuario")
 
         usuario1 =Usuario(x,y,z)
-        
 
+    def menu():
         
+    while(i!=0):
+
+        print("=========================")
+        print("        Biblioteca       ")
+        print("=========================")
+
+        print("1. Mostrar catalogo")
+        print("2. Buscar Libro")
+        print("3. Ver disponibilidad")
+        print("4. Apartar Libro")
+        print("5. Mostrar Prestamos")
+        print("6. Salir")
+        try:
+            x=int(input("Seleccione una opcion"))
+            if not isinstance(x,str):
+                raise ValueError
+        
+            if ( x = 1):
+                biblioteca1.mostrarCatalogo()
+
+
+            if ( x = 2):
+                biblioteca1.buscarLibro()
+
+    
+            if ( x = 3):
+                Biblioteca1.verDisponibilidad()
+            
+        except ValueError:
+            pass
+
+
 catalogoDiccionario = {
 
     "1001": Libro(
@@ -118,35 +150,3 @@ catalogoDiccionario = {
 }
 
 i = 0;
-
-while(i!=0):
-
-    print("=========================")
-    print("        Biblioteca       ")
-    print("=========================")
-
-    print("1. Mostrar catalogo")
-    print("2. Buscar Libro")
-    print("3. Ver disponibilidad")
-    print("4. Apartar Libro")
-    print("5. Mostrar Prestamos")
-    print("6. Salir")
-    try:
-        x=int(input("Seleccione una opcion"))
-        if not isinstance(x,str):
-            raise ValueError
-        
-        if ( x = 1):
-
-    
-        if ( x = 2):
-
-    
-        if ( x = 3):
-    except ValueError:
-
-
-    
-
-
-    

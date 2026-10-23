@@ -1,8 +1,8 @@
 def main():
     print("Bienvenido al sistema de biblioteca")
 
-    biblioteca = Biblioteca()
-    biblioteca.menu()
+    biblioteca1 = Biblioteca()
+    biblioteca1.menu()
 
 if __name__ ++ "__main__":
     main()
@@ -16,27 +16,35 @@ class EstadoLibro(Enum):
 
 class Usuario:
     def __init__(self,idUsuario,nombre,librosApartados):
+
         self.__idUsuario = idUsuario
         self.nombre = nombre
         self.librosApartados = librosApartados
+
     def agregarPrestamo():
         pass
+
     def mostrarPrestamo():
         pass
+
     def __str__(self):
         pass
         
 class Libro:
     def __init__(self,isbn,titulo,ejemplares,estado):
+
         self.__isbn = isbn 
         self.titulo =titulo
         self.__ejemplares = ejemplares
         self.estado = estado
 
-    def obtenerEjemplares():
+    def getEjemplares():
         pass
 
     def restarEjemplares():
+        pass
+
+    def getTitulo():
         pass
 
     def __str__(self):
@@ -47,9 +55,74 @@ class Biblioteca:
         self.catalogo = catalogo
         self.usuarios = usuarios
 
-    def Agregar
+    def AgregarLibro(self,titulo,isbn,ejemplares):
+        self.catalogo.nombre = titulo
+        self.catalogo.isbn = isbn
+        self.catalogo.ejemplares = ejemplares
 
+    def buscarCatalogo(self):
+        pass
         
+    def buscarLibro(self):
+        pass
+        
+    def verDisponibilidad(self):
+        print(f"La cantidad disponible del libro: {self.getnombre()} es de {self.verDisponibilidad}")
+
+    def apartarLibro(self):
+        try:
+            if (disponibilidad <=0):
+                raise ValueError("Lo sentimos este libro no esta disponible")
+            else:
+                disponibilidad = disponibilidad-1
+
+        except ValueError:
+            print("Lo sentimos hubo un error en el sistema")
+            
+            
+            
+
+    def registrarUsuario(self):
+        x= input("Ingrese el nombre del usuario")
+        y = input("Ingrese el id del usuario")
+        z = input("Ingrese la cantidad de libros apartados del usuario")
+
+        usuario1 =Usuario(x,y,z)
+
+    def menu():
+        
+        while(i!=0):
+
+            print("=========================")
+            print("        Biblioteca       ")
+            print("=========================")
+
+            print("1. Mostrar catalogo")
+            print("2. Buscar Libro")
+            print("3. Ver disponibilidad")
+            print("4. Apartar Libro")
+            print("5. Mostrar Prestamos")
+            print("6. Salir")
+            try:
+                x=int(input("Seleccione una opcion"))
+                if not isinstance(x,str):
+                    raise ValueError
+        
+                if ( x = 1):
+                    biblioteca1.mostrarCatalogo()
+
+
+                if ( x = 2):
+                    biblioteca1.buscarLibro()
+
+    
+                if ( x = 3):
+                    Biblioteca1.verDisponibilidad()
+            
+            except ValueError:
+                pass
+
+
 catalogoDiccionario = {
 
     "1001": Libro(
@@ -77,35 +150,3 @@ catalogoDiccionario = {
 }
 
 i = 0;
-
-while(i!=0):
-
-    print("=========================")
-    print("        Biblioteca       ")
-    print("=========================")
-
-    print("1. Mostrar catalogo")
-    print("2. Buscar Libro")
-    print("3. Ver disponibilidad")
-    print("4. Apartar Libro")
-    print("5. Mostrar Prestamos")
-    print("6. Salir")
-    try:
-        x=int(input("Seleccione una opcion"))
-        if not isinstance(x,str):
-            raise ValueError
-        
-        if ( x = 1):
-
-    
-        if ( x = 2):
-
-    
-        if ( x = 3):
-    except ValueError:
-
-
-    
-
-
-    

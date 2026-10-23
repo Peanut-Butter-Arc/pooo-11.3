@@ -85,6 +85,54 @@ usuariosLista = [
     Usuario(3, "María García")
 ]
 
+#CLASE LIBRO
+
+class Libro:
+    def __init__(self,isbn,titulo,ejemplares,estado):
+
+        self.__isbn = isbn 
+        self.titulo = titulo
+        self.__ejemplares = ejemplares
+        self.estado = estado
+
+
+    #Regresa la cantidad de ejemplares disponibles
+    def getEjemplares(self):
+        return self.__ejemplares
+
+
+    #Resta un ejemplar cuando alguien aparta un libro
+    def restarEjemplares(self):
+
+        if self.__ejemplares > 0:
+
+            self.__ejemplares = self.__ejemplares - 1
+
+            #Si ya no quedan ejemplares, el libro cambia a agotado
+            if self.__ejemplares == 0:
+                self.estado = EstadoLibro.AGOTADO
+
+        else:
+            raise ValueError(
+                "Lo sentimos este libro no esta disponible"
+            )
+
+
+    #Regresa el título del libro
+    def getTitulo(self):
+        return self.titulo
+
+
+    #Permite imprimir la información del libro
+    def __str__(self):
+
+        return (
+            "ISBN: " + self.__isbn
+            + " | Titulo: " + self.titulo
+            + " | Ejemplares: " + str(self.__ejemplares)
+            + " | Estado: " + self.estado.name
+        )
+
 class Biblioteca:
     def __init__(self,catalogo=catalogoDiccionario,usuarios=usuariosLista):
         self.catalogo = catalogo

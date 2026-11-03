@@ -1,0 +1,1437 @@
+from pathlib import Path
+import sqlite3
+from datetime import datetime
+
+#librerias
+
+carpetaCodigo = Path(__file__).resolve().parent
+archivoAlumnosPublico = carpetaCodigo / "alumnos.txt"
+archivoCuentasPublico = carpetaCodigo / "cuentas.txt"
+archivoLogPublico = carpetaCodigo / "logErrores.txt"
+
+#archivos del programa 
+
+indiceWhile = 1
+registrado = 1
+coordinadorActual = ""
+cuentas = []
+gruposDisponibles = {}
+gestorGlobal = ""
+
+#variables globales
+
+limiteActividades = 5
+limiteMentorias = 3
+limiteActividadesObligatorias = 2
+
+#limite inicial(no estoy seguro)
+
+AreaRe = [
+    "ASUA",
+    "FESAL",
+    "ADEFA",
+    "Presidencias ASUA",
+    "Sociedades de alumnos",
+    "Asociaciones por estado",
+    "Clubs Anahuac"
+]
+#Areas (pensanso en que aosciaciones por estados es adefa pero por cirto estado (la vd no se como funciona))
+
+reemplazosTexto = {
+    "á": "a",
+    "é": "e",
+    "í": "i",
+    "ó": "o",
+    "ú": "u",
+    "ü": "u",
+    ",": "",
+    ".": "",
+    ";": "",
+    ":": ""
+}
+#para cuando pongan un nombre con acento este no de error y pase 
+
+
+def rectificarId(valor):
+    texto = str(valor).strip()
+    numeros = ""
+    for caracter in texto:
+        if caracter.isdigit():
+            numeros += caracter
+    while numeros.startswith("0") and len(numeros) > 1:
+        numeros = numeros[1:]
+    return numeros
+
+#en caso de que yo ponga 00050402 en la lista aparezca 50402 porque 0050432 es lo mismo que 504221
+
+
+def rectificarTexto(valor):
+    texto = str(valor).strip().lower()
+    resultado = ""
+    for caracter in texto:
+        if caracter in reemplazosTexto:
+            resultado += reemplazosTexto[caracter]
+        else:
+            resultado += caracter
+    return " ".join(resultado.split())
+
+#para el texto porque resulta que ALEXA es lo mismo que alexa pero al momneot de usar el programa no da 
+
+
+class AreaRE:
+
+    def __init__(self, idArea, nombreArea):
+        if not str(idArea).strip():
+            raise ValueError("El ID del area no puede estar vacio")
+        if not str(nombreArea).strip():
+            raise ValueError("El nombre del area no puede estar vacio")
+        #inicializamos el area
+
+        self.idArea = idArea
+        self.nombreArea = nombreArea
+        self.alumnos = []
+
+    def getIdArea(self):
+        return self.idArea
+
+    def getNombreArea(self):
+        return self.nombreArea
+
+    def getAlumnos(self):
+        return self.alumnos
+    
+    #GETTERWSS  
+
+    def obtenerTipoGrupo(self):
+        return "Grupo Universitario General"
+
+    def agregarAlumno(self, alumno):
+        if alumno == "":
+            raise ValueError("El alumno no existe")
+        for existente in self.alumnos:
+            if existente.getId() == alumno.getId():
+                return True
+        self.alumnos.append(alumno)
+        return True
+
+    def eliminarAlumno(self, idAlumno):
+        idLimpio = rectificarId(idAlumno)
+        for a in self.alumnos:
+            if a.getId() == idLimpio:
+                self.alumnos.remove(a)
+                return True
+        raise ValueError(f"El alumno con ID {idLimpio} no se encuentra en el grupo {self.nombreArea}")
+
+    #eliminar y agregar alumno
+
+    def __str__(self):
+        return f"ID {self.idArea} | Grupo: {self.nombreArea} | Tipo: {self.obtenerTipoGrupo()} | Inscritos: {len(self.alumnos)}"
+
+    #str del alumno
+
+
+class ASUA(AreaRE):
+    def __init__(self, idArea=1, nombreArea="ASUA"):
+        super().__init__(idArea, nombreArea)
+
+    def obtenerTipoGrupo(self):
+        return "Accion Social Universidad Anahuac"
+    #herencia para asua
+
+
+class FESAL(AreaRE):
+    def __init__(self, idArea=2, nombreArea="FESAL"):
+        super().__init__(idArea, nombreArea)
+
+    def obtenerTipoGrupo(self):
+        return "Federacion de Sociedades de Alumnos"
+    #herencia para fesal
+
+
+class ADEFA(AreaRE):
+    def __init__(self, idArea=3, nombreArea="ADEFA"):
+        super().__init__(idArea, nombreArea)
+
+    def obtenerTipoGrupo(self):
+        return "Asociacion de Estudiantes Foraneos Anahuac"
+    #herencia para adefa
+
+
+class PresidenciasASUA(ASUA):
+    def __init__(self, idArea=4, nombreArea="Presidencias ASUA"):
+        super().__init__(idArea, nombreArea)
+
+    def obtenerTipoGrupo(self):
+        return "Direccion y Presidencias ASUA"
+    #herencia de asua para las presidencias
+
+
+class SociedadesDeAlumnos(AreaRE):
+    def __init__(self, idArea=5, nombreArea="Sociedades de alumnos", carrera="General"):
+        super().__init__(idArea, nombreArea)
+        if not str(carrera).strip():
+            raise ValueError("La carrera de la sociedad de alumnos no puede estar vacia")
+        self.facultad = str(carrera).strip()
+        #guardamos la carrera o facultad de la sociedad
+
+    def setCarrera(self, nuevaCarrera):
+        if not str(nuevaCarrera).strip():
+            raise ValueError("La carrera no puede estar vacia")
+        self.facultad = str(nuevaCarrera).strip()
+
+    def obtenerTipoGrupo(self):
+        return f"Sociedad de Alumnos ({self.facultad})"
+    #cambiamos y mostramos la carrera de la sociedad
+
+
+class AsociacionesPorEstado(AreaRE):
+    def __init__(self, idArea=6, nombreArea="Asociaciones por estado", estadoRepresentado="Queretaro"):
+        super().__init__(idArea, nombreArea)
+        if not str(estadoRepresentado).strip():
+            raise ValueError("El estado representado no puede estar vacio")
+        self.estadoRepresentado = str(estadoRepresentado).strip()
+        #le ponemos queretaro por defecto por si no ponen nada al inicio
+
+    def setEstadoRepresentado(self, nuevoEstado):
+        if not str(nuevoEstado).strip():
+            raise ValueError("El estado representado no puede estar vacio")
+        self.estadoRepresentado = str(nuevoEstado).strip()
+
+    def obtenerTipoGrupo(self):
+        return f"Asociacion Estatal ({self.estadoRepresentado})"
+    #para saber de que estado es la asociacion
+
+
+class ClubsAnahuac(AreaRE):
+    def __init__(self, idArea=7, nombreArea="Clubs Anahuac", categoriaClub="Deportivo y Cultural"):
+        super().__init__(idArea, nombreArea)
+        if not str(categoriaClub).strip():
+            raise ValueError("La categoria del club no puede estar vacia")
+        self.categoriaClub = str(categoriaClub).strip()
+
+    def setCategoriaClub(self, nuevaCategoria):
+        if not str(nuevaCategoria).strip():
+            raise ValueError("La categoria del club no puede estar vacia")
+        self.categoriaClub = str(nuevaCategoria).strip()
+
+    def obtenerTipoGrupo(self):
+        return f"Club Universitario ({self.categoriaClub})"
+    #para los clubs y de que tipo son
+
+
+class Coordinador:
+    #definimos el coordinador
+    def __init__(self, idNombre, contrasena, nombre, catalogoAlumnos="", area="General", añoAdministracion=2026):
+
+        idLimpio = rectificarId(idNombre)
+        nombreLimpio = rectificarTexto(nombre)
+        #rectificamos el id y nombre
+
+        if not idLimpio:
+            raise ValueError("El ID del coordinador debe contener numeros validos")
+        if not nombreLimpio:
+            raise ValueError("El nombre del coordinador no puede estar vacio")
+        #para no poner excepciones a lo wey yo pienso que es una buena idea que solo este esto y en caso de cualquier otro usamos un exception y ya
+
+        if len(str(contrasena).strip()) < 4:
+            raise ValueError("La contrasena del coordinador debe tener al menos 4 caracteres")
+        #en caso de que la contrasena sea menor a 4
+
+        if int(añoAdministracion) < 2000 or int(añoAdministracion) > 2100:
+            raise ValueError("El arño de administracion no es valido")
+
+        self.idNombre = idLimpio
+        self.contrasena = str(contrasena).strip()
+        self.nombre = nombreLimpio
+
+        #si el catalogo es lista entonces se guarda
+        if isinstance(catalogoAlumnos, list):
+            self.catalogoAlumnos = catalogoAlumnos
+        else:
+            self.catalogoAlumnos = []
+
+        #areaaa
+        self.areas = []
+        if isinstance(area, list):
+            for item in area:
+                limpio = str(item).strip()
+                if limpio != "" and limpio not in self.areas:
+                    self.areas.append(limpio)
+        else:
+            partes = str(area).split(",")
+            for item in partes:
+                limpio = item.strip()
+                if limpio != "" and limpio not in self.areas:
+                    self.areas.append(limpio)
+
+        #si no le mete nada el usuario le pone general
+        if len(self.areas) == 0:
+            self.areas.append("General")
+
+        self.area = ", ".join(self.areas)
+        self.añoAdministracion = int(añoAdministracion)
+        self.anioAdministracion = int(añoAdministracion)
+        #dejamos los dos con ñ y sin ñ para que no truene al guardar o imprimir
+
+        #recordatorio que eliminamos todos los comentarios porque nos perdimos y no mas no entendiamos que estabamos haciendo
+
+    def agregarGrupoCoordinado(self, nombreGrupo):
+
+        #en caso de que el coordinador tenga que corrdinar varios grupos que por lo que veo eso pasa
+        limpio = str(nombreGrupo).strip()
+        if limpio == "" or limpio not in AreaRe:
+            raise ValueError("El grupo a coordinar no es valido")
+        if limpio not in self.areas:
+            if "General" in self.areas and len(self.areas) == 1:
+                self.areas.clear()
+            self.areas.append(limpio)
+            self.area = ", ".join(self.areas)
+            return True
+        return False
+
+    def obtenerGruposCoordinados(self):
+        return self.areas
+    #regresa la lista de grupos que maneja el coordinador
+
+    def darDeAltaAlumno(self, alumno):
+        if alumno == "":
+            raise ValueError("No se puede registrar un alumno vacio")
+        for existente in self.catalogoAlumnos:
+            if existente.getId() == alumno.getId():
+                raise ValueError(f"Ya existe un alumno registrado con el ID {alumno.getId()}")
+        self.catalogoAlumnos.append(alumno)
+        return True
+    #metemos al alumno al catalogo si no esta repetido su id
+
+    def darDeBajaAlumno(self, criterio):
+        idLimpio = rectificarId(criterio)
+        nombreLimpio = rectificarTexto(criterio)
+        if not idLimpio and not nombreLimpio:
+            raise ValueError("Debe proporcionar un ID o nombre valido para dar de baja")
+        for alumno in self.catalogoAlumnos:
+            if (idLimpio and alumno.getId() == idLimpio) or (nombreLimpio and alumno.getNombre() == nombreLimpio):
+                self.catalogoAlumnos.remove(alumno)
+                return True
+        raise ValueError(f"No se encontro al alumno con el dato {criterio}")
+    #buscamos por id o por nombre y lo borramos de la lista
+
+    def mostrarAlumno(self, criterio):
+        idLimpio = rectificarId(criterio)
+        nombreLimpio = rectificarTexto(criterio)
+        if not idLimpio and not nombreLimpio:
+            raise ValueError("El dato a buscar no puede estar vacio")
+        for alumno in self.catalogoAlumnos:
+            if (idLimpio and alumno.getId() == idLimpio) or (nombreLimpio and alumno.getNombre() == nombreLimpio):
+                print(alumno)
+                return alumno
+        raise ValueError(f"Alumno '{criterio}' no encontrado")
+    #busca al alumno lo imprime y lo regresa para usarlo en el menu
+
+    def mostrarAlumnosPorMisGrupos(self):
+        lista = []
+        for a in self.catalogoAlumnos:
+            if a.getArea() in self.areas or "General" in self.areas:
+                lista.append(a)
+        return lista
+    #filtra solo los alumnos que estan en los grupos de este coordinador
+
+    def mostrarAlumnosCumplimiento(self):
+        lista = []
+        for a in self.catalogoAlumnos:
+            if a.verificarGraduacion() == "S":
+                lista.append(a)
+        return lista
+    #saca una lista con los que ya cumplieron todo para graduarse
+
+    def mostrarAlumnosConRequisitosPendientes(self):
+        lista = []
+        for a in self.catalogoAlumnos:
+            if a.verificarGraduacion() != "S":
+                lista.append(a)
+        return lista
+    #saca los que todavia deben actividades o materias
+
+    def obtenerTodosLosAlumnos(self):
+        return self.catalogoAlumnos
+
+    def __str__(self):
+        return f"Coordinador: {self.nombre} | ID: {self.idNombre} | Grupos: {self.area} | Administracion: {self.anioAdministracion}"
+
+    #getters setters y str
+
+
+class Alumno:
+
+    #inicializamos todo para que se cree el alumno
+    def __init__(self, idAlumno, nombre, semestre, areaDeRe, gestion, materiasReprobadas, actividades=0, mentorias=0, actividadesObligatorias=0, detalleGrupo="General"):
+        idLimpio = rectificarId(idAlumno)
+        nombreLimpio = rectificarTexto(nombre)
+        if not idLimpio:
+            raise ValueError("El ID del alumno debe contener numeros validos")
+        if not nombreLimpio:
+            raise ValueError("El nombre del alumno no puede estar vacio")
+        if int(semestre) <= 0 or int(semestre) > 16:
+            raise ValueError("El semestre debe estar entre 1 y 16")
+        if str(areaDeRe).strip() not in AreaRe:
+            raise ValueError(f"El grupo '{areaDeRe}' no pertenece a los grupos validos de la universidad")
+        if int(materiasReprobadas) < 0:
+            raise ValueError("Las materias reprobadas no pueden ser negativas")
+        if int(actividades) < 0 or int(mentorias) < 0 or int(actividadesObligatorias) < 0:
+            raise ValueError("Las actividades y mentorias no pueden ser numeros negativos")
+
+        #en caso de los errores pone los errores
+
+        self.idAlumno = idLimpio
+        self.nombre = nombreLimpio
+        self.semestre = int(semestre)
+        self.areaDeRe = str(areaDeRe).strip()
+        self.gestionRe = str(gestion).strip()
+        self.materiasReprobadas = int(materiasReprobadas)
+        self.actividades = int(actividades)
+        self.mentorias = int(mentorias)
+        self.actividadesObligatorias = int(actividadesObligatorias)
+        self.detalleGrupo = str(detalleGrupo).strip() if str(detalleGrupo).strip() != "" else "General"
+        #metemos todos los datos de los alumnos
+
+    def getId(self):
+        return self.idAlumno
+
+    def getNombre(self):
+        return self.nombre
+
+    def getSemestre(self):
+        return self.semestre
+
+    def getArea(self):
+        return self.areaDeRe
+
+    def getGestionRe(self):
+        return self.gestionRe
+
+    def getDetalleGrupo(self):
+        return self.detalleGrupo
+    #getters y setters
+
+    def actualizarDatos(self, nombre, semestre, areaDeRe, detalleGrupo="General"):
+        nombreLimpio = rectificarTexto(nombre)
+        if not nombreLimpio:
+            raise ValueError("El nombre no puede estar vacio al actualizar")
+        if int(semestre) <= 0 or int(semestre) > 16:
+            raise ValueError("El semestre debe ser mayor a 0 y menor o igual a 16")
+        if str(areaDeRe).strip() not in AreaRe:
+            raise ValueError("El grupo seleccionado para actualizar no es valido")
+        self.nombre = nombreLimpio
+        self.semestre = int(semestre)
+        self.areaDeRe = str(areaDeRe).strip()
+        if str(detalleGrupo).strip() != "":
+            self.detalleGrupo = str(detalleGrupo).strip()
+        #actualizamos nombre semestre y grupo del alumno
+
+    def actualizarProgreso(self, actividades, mentorias, actividadesObligatorias, materiasReprobadas):
+        if int(actividades) < 0 or int(mentorias) < 0 or int(actividadesObligatorias) < 0 or int(materiasReprobadas) < 0:
+            raise ValueError("Los valores de progreso no pueden ser negativos")
+        self.actividades = int(actividades)
+        self.mentorias = int(mentorias)
+        self.actividadesObligatorias = int(actividadesObligatorias)
+        self.materiasReprobadas = int(materiasReprobadas)
+        #para cambiar cuantas actividades mentorias o reprobadas lleva
+
+    def verificarActividades(self, cantidadActividades=-1):
+        try:
+            if cantidadActividades != -1 and cantidadActividades != "":
+                cant = int(cantidadActividades)
+            else:
+                cant = self.actividades
+
+            if cant < 0:
+                raise ValueError("La cantidad de actividades no puede ser negativa")
+            if cant < limiteActividades:
+                return False
+            return True
+        except (TypeError, ValueError):
+            raise ValueError("Error en verificar Actividades")
+        #checamos si ya llego al limite de actividades normales
+
+    def verificarMentorias(self, cantidadMentorias=-1):
+        try:
+            if cantidadMentorias != -1 and cantidadMentorias != "":
+                cant = int(cantidadMentorias)
+            else:
+                cant = self.mentorias
+
+            if cant < 0:
+                raise ValueError("La cantidad de mentorias no puede ser negativa")
+            if cant < limiteMentorias:
+                return False
+            return True
+        except (TypeError, ValueError):
+            raise ValueError("Error en verificar Mentorias")
+        #checamos si ya cumplio con las mentorias minimas
+
+    def verificarSituacionAcademica(self):
+        try:
+            if self.materiasReprobadas < 0:
+                raise ValueError("Materias reprobadas invalidas")
+            if self.materiasReprobadas >= 1:
+                return False
+            return True
+        except (TypeError, ValueError):
+            raise ValueError("Error en verificar situacion Academica")
+        #si tiene 1 o mas reprobadas devuelve false porque no puede graduarse
+
+    def verificarActividadesObligatorias(self):
+        try:
+            if self.actividadesObligatorias < 0:
+                raise ValueError("Actividades obligatorias invalidas")
+            if self.actividadesObligatorias < limiteActividadesObligatorias:
+                return False
+            return True
+        except (TypeError, ValueError):
+            raise ValueError("Error en verificar Actividades Obligatorias")
+        #checamos las actividades obligatorias
+
+    def verificarGraduacion(self):
+        try:
+            if self.verificarActividades() and self.verificarActividadesObligatorias() and self.verificarSituacionAcademica() and self.verificarMentorias():
+                return "S"
+            return self.obtenerPendientes()
+        except Exception:
+            raise ValueError("Error en verificar Actividades Graduacion")
+        #si cumple todo regresa S y si no regresa la lista de lo que le falta
+
+    def obtenerPendientes(self):
+        try:
+            pendientes = []
+            if not self.verificarActividades():
+                pendientes.append(f"Actividades ({self.actividades}/{limiteActividades})")
+            if not self.verificarMentorias():
+                pendientes.append(f"Mentorias ({self.mentorias}/{limiteMentorias})")
+            if not self.verificarSituacionAcademica():
+                pendientes.append(f"Materias Reprobadas ({self.materiasReprobadas})")
+            if not self.verificarActividadesObligatorias():
+                pendientes.append(f"Actividades Obligatorias ({self.actividadesObligatorias}/{limiteActividadesObligatorias})")
+            return pendientes
+        except Exception as e:
+            enviarError(e)
+            raise ValueError("Error al calcular los requisitos pendientes")
+        #junta en una lista todo lo que todavia no cumple el alumno
+
+    def mostrarProgreso(self):
+        return f"{self.nombre} | Grupo: {self.areaDeRe} ({self.detalleGrupo}) | Act:{self.actividades}/{limiteActividades} | Ment:{self.mentorias}/{limiteMentorias} | Oblig:{self.actividadesObligatorias}/{limiteActividadesObligatorias} | Reprobadas:{self.materiasReprobadas}"
+
+    def __str__(self):
+        return f"{self.idAlumno}|{self.nombre}|{self.semestre}|{self.areaDeRe}|{self.gestionRe}|{self.materiasReprobadas}|{self.actividades}|{self.mentorias}|{self.actividadesObligatorias}|{self.detalleGrupo}"
+    #formato con barritas para guardarlo directo en el txt
+
+
+class GestionRe(Alumno):
+    #herencia de alumno para los que son directivos o de gestion
+    def __init__(self, idAlumno, nombre, semestre, areaDeRe, gestion, materiasReprobadas, periodo, estatus, semestresComoAdmin=1, actividades=0, mentorias=0, actividadesObligatorias=0, requisitos="", detalleGrupo="General"):
+        super().__init__(idAlumno, nombre, semestre, areaDeRe, gestion, materiasReprobadas, actividades, mentorias, actividadesObligatorias, detalleGrupo)
+        if not str(periodo).strip():
+            raise ValueError("El periodo de gestion no puede estar vacio")
+        if not str(estatus).strip():
+            raise ValueError("El estatus de gestion no puede estar vacio")
+        if int(semestresComoAdmin) <= 0 or int(semestresComoAdmin) > 2:
+            raise ValueError("Un miembro de GestionRe solo puede estar maximo 2 semestres como admin")
+        self.periodo = str(periodo).strip()
+        self.estatus = str(estatus).strip()
+        self.semestresComoAdmin = int(semestresComoAdmin)
+        if isinstance(requisitos, list):
+            self.requisitos = requisitos
+        else:
+            self.requisitos = []
+        #ademas de lo de alumno normal le guardamos periodo estatus y su lista de requisitos especiales
+
+    def agregarRequisito(self, requisito):
+        if not isinstance(requisito, Requisito):
+            raise ValueError("El objeto agregado debe ser una instancia de Requisito")
+        self.requisitos.append(requisito)
+
+    def obtenerRequisitos(self):
+        return self.requisitos
+
+    def calcularPorcentajeAvance(self):
+        if len(self.requisitos) == 0:
+            return 0.0
+        cumplidos = 0
+        for r in self.requisitos:
+            if r.verificarCumplimiento():
+                cumplidos += 1
+        return (cumplidos / len(self.requisitos)) * 100
+        #sacamos el porcentaje de cuantos requisitos especiales ya completo
+
+    def serializarRequisitos(self):
+        if len(self.requisitos) == 0:
+            return "SinRequisitos"
+        partes = []
+        for r in self.requisitos:
+            partes.append(r.aFormatoArchivo())
+        return ";".join(partes)
+        #los pasamos a texto separados por punto y coma para que quepan en una sola linea del txt
+
+    def __str__(self):
+        return f"{super().__str__()}|{self.periodo}|{self.estatus}|SemestresAdmin:{self.semestresComoAdmin}|{self.serializarRequisitos()}"
+
+
+class Requisito:
+    #clase base para los requisitos de los de gestion
+    def __init__(self, nombreActividad, periodo, completado=False):
+        if not str(nombreActividad).strip():
+            raise ValueError("El nombre de la actividad del requisito no puede estar vacio")
+        if not str(periodo).strip():
+            raise ValueError("El periodo del requisito no puede estar vacio")
+        self.nombreActividad = rectificarTexto(nombreActividad)
+        self.periodo = str(periodo).strip()
+        self.completado = bool(completado)
+
+    def verificarCumplimiento(self):
+        return self.completado
+
+    def obtenerEstado(self):
+        if self.completado:
+            return "Completado"
+        return "Pendiente"
+
+    def registrarAvance(self, estado=True):
+        if not isinstance(estado, bool):
+            raise ValueError("El estado del requisito debe ser booleano")
+        self.completado = estado
+        #cambia de pendiente a completado o al reves
+
+    def aFormatoArchivo(self):
+        est = "1" if self.completado else "0"
+        return f"GEN~{self.nombreActividad}~{self.periodo}~{est}~0"
+
+    def __str__(self):
+        return f"{self.nombreActividad} ({self.periodo}) - {self.obtenerEstado()}"
+
+
+class RequisitoEvento(Requisito):
+    #requisito tipo evento que pide fecha
+    def __init__(self, nombreActividad, periodo, fechaEvento="", completado=False):
+        super().__init__(nombreActividad, periodo, completado)
+        if not str(fechaEvento).strip():
+            raise ValueError("La fecha del evento no puede estar vacia")
+        self.fechaEvento = str(fechaEvento).strip()
+
+    def aFormatoArchivo(self):
+        est = "1" if self.completado else "0"
+        return f"EVE~{self.nombreActividad}~{self.periodo}~{est}~{self.fechaEvento}"
+
+    def __str__(self):
+        return f"Evento: {super().__str__()} | Fecha: {self.fechaEvento}"
+
+
+class RequisitoAcademico(Requisito):
+    #requisito tipo academico que pide calificacion minima
+    def __init__(self, nombreActividad, periodo, calificacionMinima=70, completado=False):
+        super().__init__(nombreActividad, periodo, completado)
+        if float(calificacionMinima) < 0 or float(calificacionMinima) > 100:
+            raise ValueError("La calificacion minima debe estar entre 0 y 100")
+        self.calificacionMinima = float(calificacionMinima)
+
+    def aFormatoArchivo(self):
+        est = "1" if self.completado else "0"
+        return f"ACA~{self.nombreActividad}~{self.periodo}~{est}~{self.calificacionMinima}"
+
+    def __str__(self):
+        return f"Academico: {super().__str__()} | Minimo: {self.calificacionMinima}"
+
+
+class GestorArchivos:
+    #clase para manejar todos los txt y que no se pierda nada al cerrar el programa
+    def __init__(self, archivoAlumnos=archivoAlumnosPublico, archivoLog=archivoLogPublico, archivoCuentas=archivoCuentasPublico):
+        self.archivoAlumnos = Path(archivoAlumnos)
+        self.archivoLog = Path(archivoLog)
+        self.archivoCuentas = Path(archivoCuentas)
+        self.inicializarArchivosPublicos()
+
+    def inicializarArchivosPublicos(self):
+        for ruta in (self.archivoAlumnos, self.archivoLog, self.archivoCuentas):
+            if not ruta.exists():
+                with open(ruta, "w", encoding="utf-8") as archivo:
+                    archivo.write("")
+        #si no existen los archivos txt los crea vacios para que no de error al leerlos
+
+    def registrarError(self, tipoError, mensaje):
+        fechaHora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        linea = f"{fechaHora} | ERROR | {tipoError}: {mensaje}\n"
+        with open(self.archivoLog, "a", encoding="utf-8") as archivo:
+            archivo.write(linea)
+        #guarda el error con fecha y hora en logErrores.txt
+
+    def guardarAlumnos(self, listaAlumnos):
+        try:
+            with open(self.archivoAlumnos, "w", encoding="utf-8") as archivo:
+                for alumno in listaAlumnos:
+                    archivo.write(str(alumno) + "\n")
+        except PermissionError as e:
+            self.registrarError("PermissionError", str(e))
+            raise ValueError("No se tienen permisos para guardar el archivo de alumnos")
+        #sobreescribe alumnos.txt con la lista actualizada
+
+    def reconstruirRequisitos(self, cadenaRequisitos):
+        listaReq = []
+        texto = str(cadenaRequisitos).strip()
+        if texto == "" or texto == "SinRequisitos":
+            return listaReq
+        elementos = texto.split(";")
+        for item in elementos:
+            partes = item.split("~")
+            if len(partes) >= 5:
+                tipo = partes[0]
+                nom = partes[1]
+                per = partes[2]
+                comp = True if partes[3] == "1" else False
+                extra = partes[4]
+                if tipo == "EVE":
+                    reqObj = RequisitoEvento(nom, per, extra, comp)
+                    listaReq.append(reqObj)
+                elif tipo == "ACA":
+                    cal = float(extra) if extra.replace(".", "", 1).isdigit() else 70.0
+                    reqObj = RequisitoAcademico(nom, per, cal, comp)
+                    listaReq.append(reqObj)
+                else:
+                    reqObj = Requisito(nom, per, comp)
+                    listaReq.append(reqObj)
+        return listaReq
+        #convierte el texto del archivo otra vez en objetos de tipo requisito
+
+    def cargarAlumnos(self):
+        lista = []
+        try:
+            with open(self.archivoAlumnos, "r", encoding="utf-8") as archivo:
+                for linea in archivo:
+                    lineaLimpia = linea.strip()
+                    if not lineaLimpia:
+                        continue
+                    datos = lineaLimpia.split("|")
+                    #dependiendo de cuantos datos tenga la linea sabemos si es GestionRe o Alumno normal
+                    if len(datos) >= 14:
+                        semAdminTexto = datos[12].replace("SemestresAdmin:", "").strip()
+                        semAdmin = int(semAdminTexto) if semAdminTexto.isdigit() else 1
+                        reqsCargados = self.reconstruirRequisitos(datos[13])
+                        alumno = GestionRe(
+                            datos[0],
+                            datos[1],
+                            int(datos[2]),
+                            datos[3],
+                            datos[4],
+                            int(datos[5]),
+                            datos[10],
+                            datos[11],
+                            semAdmin,
+                            int(datos[6]),
+                            int(datos[7]),
+                            int(datos[8]),
+                            reqsCargados,
+                            datos[9]
+                        )
+                        lista.append(alumno)
+                    elif len(datos) >= 12:
+                        semAdminTexto = datos[11].replace("SemestresAdmin:", "").strip()
+                        semAdmin = int(semAdminTexto) if semAdminTexto.isdigit() else 1
+                        alumno = GestionRe(
+                            datos[0],
+                            datos[1],
+                            int(datos[2]),
+                            datos[3],
+                            datos[4],
+                            int(datos[5]),
+                            datos[9],
+                            datos[10],
+                            semAdmin,
+                            int(datos[6]),
+                            int(datos[7]),
+                            int(datos[8])
+                        )
+                        lista.append(alumno)
+                    elif len(datos) == 10:
+                        alumno = Alumno(
+                            datos[0],
+                            datos[1],
+                            int(datos[2]),
+                            datos[3],
+                            datos[4],
+                            int(datos[5]),
+                            int(datos[6]),
+                            int(datos[7]),
+                            int(datos[8]),
+                            datos[9]
+                        )
+                        lista.append(alumno)
+                    elif len(datos) == 9:
+                        alumno = Alumno(
+                            datos[0],
+                            datos[1],
+                            int(datos[2]),
+                            datos[3],
+                            datos[4],
+                            int(datos[5]),
+                            int(datos[6]),
+                            int(datos[7]),
+                            int(datos[8])
+                        )
+                        lista.append(alumno)
+                    elif len(datos) >= 6:
+                        alumno = Alumno(
+                            datos[0],
+                            datos[1],
+                            int(datos[2]),
+                            datos[3],
+                            datos[4],
+                            int(datos[5])
+                        )
+                        lista.append(alumno)
+        except FileNotFoundError:
+            self.registrarError("FileNotFoundError", f"No se encontro {self.archivoAlumnos}")
+            with open(self.archivoAlumnos, "w", encoding="utf-8") as archivo:
+                archivo.write("")
+        except Exception as e:
+            self.registrarError(type(e).__name__, str(e))
+        return lista
+
+    def guardarCuenta(self, coordinador):
+        with open(self.archivoCuentas, "a", encoding="utf-8") as archivo:
+            archivo.write(f"{coordinador.idNombre}|{coordinador.nombre}|{coordinador.contrasena}|{coordinador.area}|{coordinador.anioAdministracion}\n")
+        #agrega un coordinador nuevo al final de cuentas.txt
+
+    def guardarTodasLasCuentas(self, listaCoordinadores):
+        with open(self.archivoCuentas, "w", encoding="utf-8") as archivo:
+            for coordinador in listaCoordinadores:
+                archivo.write(f"{coordinador.idNombre}|{coordinador.nombre}|{coordinador.contrasena}|{coordinador.area}|{coordinador.anioAdministracion}\n")
+        #guarda todas las cuentas cuando se actualiza algun grupo coordinado
+
+    def cargarCuentas(self, alumnosCargados):
+        listaCuentas = []
+        try:
+            with open(self.archivoCuentas, "r", encoding="utf-8") as archivo:
+                for linea in archivo:
+                    lineaLimpia = linea.strip()
+                    if not lineaLimpia:
+                        continue
+                    datos = lineaLimpia.split("|")
+                    if len(datos) >= 5:
+                        coord = Coordinador(datos[0], datos[2], datos[1], alumnosCargados, datos[3], int(datos[4]))
+                        listaCuentas.append(coord)
+                    elif len(datos) == 4:
+                        coord = Coordinador(datos[0], "1234", datos[1], alumnosCargados, datos[2], int(datos[3]))
+                        listaCuentas.append(coord)
+        except Exception as e:
+            self.registrarError(type(e).__name__, str(e))
+        return listaCuentas
+        #lee cuentas.txt y arma la lista de coordinadores
+
+    def buscarCuentaPublica(self, usuario, contrasena, alumnosCargados):
+        idBuscado = rectificarId(usuario)
+        nombreBuscado = rectificarTexto(usuario)
+        contrasenaLimpia = str(contrasena).strip()
+        cuentasArchivo = self.cargarCuentas(alumnosCargados)
+        for cuenta in cuentasArchivo:
+            coincideId = idBuscado != "" and cuenta.idNombre == idBuscado
+            coincideNombre = nombreBuscado != "" and cuenta.nombre == nombreBuscado
+            if coincideId or coincideNombre:
+                if cuenta.contrasena == contrasenaLimpia:
+                    return cuenta
+                raise ValueError("Error en la contrasena de la cuenta")
+        raise ValueError("No se encontro la cuenta con ese ID o nombre de usuario")
+        #revisa si el id o nombre coincide y si la contrasena esta bien para dejarlo entrar
+
+    def leerArchivoTexto(self, rutaArchivo, titulo):
+        print(f"\n================ ARCHIVO: {titulo} ================")
+        print(f"Ruta: {rutaArchivo}")
+        if not rutaArchivo.exists():
+            print("(El archivo no existe actualmente)")
+            return ""
+        with open(rutaArchivo, "r", encoding="utf-8") as archivo:
+            contenido = archivo.read().strip()
+            if contenido == "":
+                print("(Archivo vacio)")
+            else:
+                lineas = contenido.split("\n")
+                numero = 1
+                for lin in lineas:
+                    print(f"{numero}. {lin}")
+                    numero += 1
+        print("====================================================")
+        return contenido
+        #imprime en consola lo que tiene adentro cualquiera de los txt
+
+    def mostrarArchivosSistema(self, opcionArchivo):
+        if opcionArchivo == "1":
+            self.leerArchivoTexto(self.archivoAlumnos, "alumnos.txt")
+        elif opcionArchivo == "2":
+            self.leerArchivoTexto(self.archivoCuentas, "cuentas.txt")
+        elif opcionArchivo == "3":
+            self.leerArchivoTexto(self.archivoLog, "logErrores.txt")
+        elif opcionArchivo == "4":
+            self.leerArchivoTexto(self.archivoAlumnos, "alumnos.txt")
+            self.leerArchivoTexto(self.archivoCuentas, "cuentas.txt")
+            self.leerArchivoTexto(self.archivoLog, "logErrores.txt")
+        else:
+            raise ValueError("Opcion de visualizacion de archivo no valida")
+
+    def __str__(self):
+        return f"GestorArchivos(Alumnos: {self.archivoAlumnos}, Cuentas: {self.archivoCuentas}, Log: {self.archivoLog})"
+
+
+gruposDisponibles.update({
+    1: ASUA(),
+    2: FESAL(),
+    3: ADEFA(),
+    4: PresidenciasASUA(),
+    5: SociedadesDeAlumnos(),
+    6: AsociacionesPorEstado(),
+    7: ClubsAnahuac()
+})
+#llenamos el diccionario con las instancias de cada grupo usando herencia
+
+gestorGlobal = GestorArchivos()
+
+
+def sincronizarGrupos(listaAlumnos):
+    for grp in gruposDisponibles.values():
+        grp.alumnos.clear()
+    for al in listaAlumnos:
+        for grp in gruposDisponibles.values():
+            if grp.getNombreArea() == al.getArea():
+                grp.agregarAlumno(al)
+#limpia y vuelve a meter a cada alumno en su grupo correspondiente
+
+
+def enviarError(error):
+    fechaHora = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+    tipo = type(error).__name__
+    with open(archivoLogPublico, "a", encoding="utf-8") as archivo:
+        archivo.write(f"{fechaHora} | ERROR | {tipo}: {error}\n")
+#funcion rapida para mandar cualquier excepcion al archivo de errores
+
+
+def pedirDetalleEspecificoGrupo(grupoObj):
+    nombreGrp = grupoObj.getNombreArea()
+    if isinstance(grupoObj, SociedadesDeAlumnos):
+        carreraIn = input("Ingrese la carrera o facultad de la Sociedad de Alumnos: ").strip()
+        if not carreraIn:
+            raise ValueError("La carrera de la Sociedad de Alumnos no puede estar vacia")
+        grupoObj.setCarrera(carreraIn)
+        return carreraIn
+    elif isinstance(grupoObj, AsociacionesPorEstado):
+        estadoIn = input("Ingrese el estado representado por la Asociacion: ").strip()
+        if not estadoIn:
+            raise ValueError("El estado representado no puede estar vacio")
+        grupoObj.setEstadoRepresentado(estadoIn)
+        return estadoIn
+    elif isinstance(grupoObj, ClubsAnahuac):
+        catIn = input("Ingrese la categoria o nombre del Club Anahuac: ").strip()
+        if not catIn:
+            raise ValueError("La categoria del club no puede estar vacia")
+        grupoObj.setCategoriaClub(catIn)
+        return catIn
+    return nombreGrp
+#si eligen sociedad asociacion o club les pregunta de que carrera estado o categoria es
+
+
+def seleccionarGrupoHerencia(pedirDetalle=False):
+    print("\n--- Grupos Universitarios Disponibles ---")
+    for clave, grupoObj in gruposDisponibles.items():
+        print(f"{clave}.- {grupoObj}")
+    opcionGrupo = input("Seleccione el numero del grupo: ").strip()
+    if not opcionGrupo.isdigit():
+        raise ValueError("La opcion de grupo debe ser un numero entero")
+    indiceGrupo = int(opcionGrupo)
+    if indiceGrupo not in gruposDisponibles:
+        raise ValueError(f"El grupo con opcion {indiceGrupo} no existe")
+    grupoElegido = gruposDisponibles[indiceGrupo]
+    if pedirDetalle:
+        pedirDetalleEspecificoGrupo(grupoElegido)
+    return grupoElegido
+#muestra el menu de los 7 grupos y devuelve el objeto que escogio el usuario
+
+
+def seleccionarVariosGruposHerencia():
+    nombresSeleccionados = []
+    seguirAgregando = "S"
+    while seguirAgregando == "S":
+        grupoObj = seleccionarGrupoHerencia(True)
+        nombreArea = grupoObj.getNombreArea()
+        if nombreArea not in nombresSeleccionados:
+            nombresSeleccionados.append(nombreArea)
+            print(f"Grupo '{nombreArea}' asignado.")
+        else:
+            print(f"El grupo '{nombreArea}' ya estaba en la lista.")
+        resp = input("¿Desea coordinar otro grupo adicional? (S/N): ").strip().upper()
+        if resp not in ("S", "N"):
+            raise ValueError("Debe responder S o N")
+        seguirAgregando = resp
+    return nombresSeleccionados
+#ciclo para cuando un coordinador nuevo quiere darse de alta en mas de un grupo a la vez
+
+
+def menuUsuarioNoRegistrado(indiceActual=1, estadoRegistrado=1, coordActual=""):
+    print(
+    """
+    Bienvenido al sistema de Gestion De Area
+        
+            Seleccione una opcion 
+        1.-Ingresar Cuenta Coordinador
+        2.-Registrar Cuenta Coordinador
+        3.-Ver Archivos del Sistema
+        4.-Salir"""
+    )
+
+    try:
+        entrada = input("Opcion: ").strip()
+        if not entrada.isdigit():
+            raise ValueError("Debe ingresar un numero valido en el menu principal")
+        seleccion = int(entrada)
+        if seleccion not in (1, 2, 3, 4):
+            raise ValueError("Opcion fuera de rango en el menu de inicio")
+
+        alumnosCargados = gestorGlobal.cargarAlumnos()
+        sincronizarGrupos(alumnosCargados)
+        cuentasCargadas = gestorGlobal.cargarCuentas(alumnosCargados)
+        cuentas.clear()
+        cuentas.extend(cuentasCargadas)
+        #cargamos todo desde los txt antes de hacer cualquier cosa en el menu
+
+        if seleccion == 1:
+            if len(cuentas) == 0:
+                raise ValueError("No hay cuentas registradas")
+            usuarioInput = input("Ingrese su ID o nombre de usuario: ").strip()
+            contrasenaInput = input("Ingrese la contrasena: ").strip()
+            if not usuarioInput or not contrasenaInput:
+                raise ValueError("El usuario y la contrasena no pueden estar vacios")
+
+            cuentaEncontrada = gestorGlobal.buscarCuentaPublica(usuarioInput, contrasenaInput, alumnosCargados)
+            coordActual = cuentaEncontrada
+            estadoRegistrado = 0
+            print(f"Bienvenido {coordActual.nombre}")
+            print("Su ID es:", coordActual.idNombre)
+            print("Grupos que coordina:", coordActual.area)
+            #si inicia sesion bien cambiamos estadoRegistrado a 0 para pasar al otro menu
+
+        elif seleccion == 2:
+            idCoordInput = input("Ingrese ID: ").strip()
+            idCoordLimpio = rectificarId(idCoordInput)
+            if not idCoordLimpio:
+                raise ValueError("El ID del coordinador no puede estar vacio y debe contener numeros")
+            for c in cuentas:
+                if c.idNombre == idCoordLimpio:
+                    raise ValueError(f"El ID de coordinador {idCoordLimpio} ya esta registrado")
+
+            nombreInput = input("Ingrese nombre: ").strip()
+            nombreLimpio = rectificarTexto(nombreInput)
+            if not nombreLimpio:
+                raise ValueError("El nombre del coordinador no puede estar vacio")
+
+            contrasenaInput = input("Ingrese contrasena (minimo 4 caracteres): ").strip()
+            anioIn = input("Ingrese anio de administracion (ej. 2026): ").strip()
+            if not anioIn.isdigit():
+                raise ValueError("El anio de administracion debe ser numerico")
+
+            listaGruposCoord = seleccionarVariosGruposHerencia()
+            nuevoCoord = Coordinador(idCoordLimpio, contrasenaInput, nombreLimpio, alumnosCargados, listaGruposCoord, int(anioIn))
+            gestorGlobal.guardarCuenta(nuevoCoord)
+            cuentas.append(nuevoCoord)
+            coordActual = nuevoCoord
+            estadoRegistrado = 0
+            print(f"Coordinador '{nuevoCoord.nombre}' registrado con ID {nuevoCoord.idNombre} en grupos: {nuevoCoord.area}")
+            #creamos la cuenta la guardamos en cuentas.txt y lo metemos directo a su sesion
+
+        elif seleccion == 3:
+            print("1.- Ver alumnos.txt")
+            print("2.- Ver cuentas.txt")
+            print("3.- Ver logErrores.txt")
+            print("4.- Ver todos los archivos")
+            opArch = input("Seleccione que archivo desea ver: ").strip()
+            gestorGlobal.mostrarArchivosSistema(opArch)
+
+        elif seleccion == 4:
+            indiceActual = 0
+            #ponemos el indice en 0 para romper el while del main y salir
+
+    except ValueError as e:
+        print(f"[ERROR DE VALIDACION]: {e}")
+        enviarError(e)
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        enviarError(e)
+
+    return indiceActual, estadoRegistrado, coordActual
+
+
+def menuUsuarioRegistrado(indiceActual=1, estadoRegistrado=0, coordActual=""):
+    global limiteActividades, limiteMentorias, limiteActividadesObligatorias
+
+    print(f"""
+    ================================================
+    Panel de Coordinacion - {coordActual}
+    Metas Minimas Actuales -> Act: {limiteActividades} | Ment: {limiteMentorias} | Oblig: {limiteActividadesObligatorias}
+    ================================================
+    1.- Registrar Alumno Completo (Normal o GestionRe con Requisitos)
+    2.- Dar de Baja Alumno
+    3.- Buscar y Mostrar Alumno por ID o Nombre
+    4.- Actualizar Datos, Grupo o Avance de Alumno
+    5.- Agregar o Actualizar Requisito Especial (Evento / Academico) a Alumno GestionRe
+    6.- Mostrar Alumnos en Cumplimiento (Listos para Graduacion)
+    7.- Mostrar Alumnos con Requisitos Pendientes
+    8.- Ver Todo (Alumnos, Grupos del Coordinador, Todos los Grupos y Cuentas)
+    9.- Coordinar un Nuevo Grupo Adicional o Configurar Subgrupo
+    10.- Configurar Actividades y Mentorias Minimas del Sistema
+    11.- Ver Archivos de Texto (alumnos.txt, cuentas.txt, logErrores.txt)
+    12.- Cerrar Sesion
+    13.- Salir del Programa
+    """)
+    try:
+        entrada = input("Seleccione una opcion: ").strip()
+        if not entrada.isdigit():
+            raise ValueError("La opcion del menu de coordinador debe ser numerica")
+        opcion = int(entrada)
+        if opcion < 1 or opcion > 13:
+            raise ValueError("Opcion de menu de coordinador fuera de rango (1-13)")
+
+        if opcion == 1:
+            #pedimos todos los datos para dar de alta a un alumno nuevo
+            idAlumno = rectificarId(input("ID del Alumno: ").strip())
+            nombre = rectificarTexto(input("Nombre completo del Alumno: ").strip())
+            semestreStr = input("Semestre actual (1-16): ").strip()
+            if not semestreStr.isdigit():
+                raise ValueError("El semestre debe ser un numero entero")
+            semestre = int(semestreStr)
+
+            grupoSeleccionado = seleccionarGrupoHerencia(False)
+            areaNombre = grupoSeleccionado.getNombreArea()
+            detalleEsp = pedirDetalleEspecificoGrupo(grupoSeleccionado)
+
+            esAdmin = input("¿Es miembro directivo / GestionRe? (S/N): ").strip().upper()
+            if esAdmin not in ("S", "N"):
+                raise ValueError("Debe responder S o N para indicar si pertenece a GestionRe")
+
+            reprobadasStr = input("Cantidad de materias reprobadas: ").strip()
+            if not reprobadasStr.isdigit():
+                raise ValueError("La cantidad de materias reprobadas debe ser un numero entero")
+            materiasReprobadas = int(reprobadasStr)
+
+            actStr = input(f"Actividades realizadas (minimo actual {limiteActividades}): ").strip()
+            mentStr = input(f"Mentorias realizadas (minimo actual {limiteMentorias}): ").strip()
+            obligStr = input(f"Actividades obligatorias realizadas (minimo actual {limiteActividadesObligatorias}): ").strip()
+            if not (actStr.isdigit() and mentStr.isdigit() and obligStr.isdigit()):
+                raise ValueError("Las actividades y mentorias deben ser valores enteros no negativos")
+
+            if esAdmin == "S":
+                #si es de gestion le pedimos sus datos extra de directivo y sus requisitos
+                periodo = input("Periodo de gestion (ej. 2026-1): ").strip()
+                estatus = input("Estatus (Activo/Inactivo): ").strip()
+                semAdminStr = input("Semestres como admin (1 o 2): ").strip()
+                if not semAdminStr.isdigit():
+                    raise ValueError("Los semestres como admin deben ser un numero entero")
+                nuevoAlumno = GestionRe(
+                    idAlumno,
+                    nombre,
+                    semestre,
+                    areaNombre,
+                    "Directivo GestionRe",
+                    materiasReprobadas,
+                    periodo,
+                    estatus,
+                    int(semAdminStr),
+                    int(actStr),
+                    int(mentStr),
+                    int(obligStr),
+                    [],
+                    detalleEsp
+                )
+                deseaReq = input("¿Desea agregar requisitos especiales de GestionRe ahora mismo? (S/N): ").strip().upper()
+                while deseaReq == "S":
+                    tipoReq = input("Tipo de requisito (1: Evento / 2: Academico): ").strip()
+                    nomAct = rectificarTexto(input("Nombre del requisito: ").strip())
+                    perReq = input("Periodo del requisito: ").strip()
+                    compIn = input("¿Completado? (S/N): ").strip().upper()
+                    if compIn not in ("S", "N"):
+                        raise ValueError("Debe indicar S o N")
+                    estBool = True if compIn == "S" else False
+                    if tipoReq == "1":
+                        fechaEv = input("Fecha del evento (DD/MM/AAAA): ").strip()
+                        reqNuevo = RequisitoEvento(nomAct, perReq, fechaEv, estBool)
+                    elif tipoReq == "2":
+                        calMinStr = input("Calificacion minima requerida (0-100): ").strip()
+                        if not calMinStr.replace(".", "", 1).isdigit():
+                            raise ValueError("La calificacion minima debe ser un numero valido")
+                        reqNuevo = RequisitoAcademico(nomAct, perReq, float(calMinStr), estBool)
+                    else:
+                        raise ValueError("Tipo de requisito invalido")
+                    nuevoAlumno.agregarRequisito(reqNuevo)
+                    deseaReq = input("¿Agregar otro requisito especial a este alumno? (S/N): ").strip().upper()
+            else:
+                #si no es directivo se crea como alumno normal
+                puestoGen = input("Rol o participacion dentro del grupo (Enter para Miembro General): ").strip()
+                if puestoGen == "":
+                    puestoGen = "Miembro General"
+                nuevoAlumno = Alumno(
+                    idAlumno,
+                    nombre,
+                    semestre,
+                    areaNombre,
+                    puestoGen,
+                    materiasReprobadas,
+                    int(actStr),
+                    int(mentStr),
+                    int(obligStr),
+                    detalleEsp
+                )
+
+            coordActual.darDeAltaAlumno(nuevoAlumno)
+            grupoSeleccionado.agregarAlumno(nuevoAlumno)
+            gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+            print(f"Alumno '{nuevoAlumno.getNombre()}' con ID '{nuevoAlumno.getId()}' registrado en {areaNombre} ({detalleEsp}).")
+
+        elif opcion == 2:
+            #damos de baja al alumno del catalogo del grupo y actualizamos el txt
+            criterioEliminar = input("Ingrese el ID o nombre del alumno a dar de baja: ").strip()
+            alumnoEncontrado = coordActual.mostrarAlumno(criterioEliminar)
+            idReal = alumnoEncontrado.getId()
+            coordActual.darDeBajaAlumno(idReal)
+            for grp in gruposDisponibles.values():
+                for al in list(grp.getAlumnos()):
+                    if al.getId() == idReal:
+                        grp.eliminarAlumno(idReal)
+            gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+            print(f"Alumno con ID {idReal} dado de baja correctamente.")
+
+        elif opcion == 3:
+            #buscamos un alumno y mostramos como va con sus requisitos
+            criterioBuscar = input("Ingrese el ID o nombre del alumno a consultar: ").strip()
+            alumno = coordActual.mostrarAlumno(criterioBuscar)
+            print("Progreso detallado:", alumno.mostrarProgreso())
+            estadoGrad = alumno.verificarGraduacion()
+            if estadoGrad == "S":
+                print("Estatus de Graduacion: CUMPLE CON TODOS LOS REQUISITOS")
+            else:
+                print("Pendientes para graduarse:", ", ".join(estadoGrad))
+            if isinstance(alumno, GestionRe):
+                print(f"Avance de requisitos especiales GestionRe: {alumno.calcularPorcentajeAvance():.1f}%")
+                if len(alumno.obtenerRequisitos()) > 0:
+                    print("Listado de requisitos GestionRe:")
+                    for r in alumno.obtenerRequisitos():
+                        print("  -", r)
+
+        elif opcion == 4:
+            #para modificar los datos personales o subirle actividades y mentorias
+            criterioActualizar = input("Ingrese el ID o nombre del alumno a modificar: ").strip()
+            alumno = coordActual.mostrarAlumno(criterioActualizar)
+            print("1.- Actualizar datos personales y cambio de grupo")
+            print("2.- Actualizar avance de actividades, mentorias y materias")
+            subOp = input("Seleccione que desea actualizar (1 o 2): ").strip()
+            if subOp == "1":
+                nuevoNombre = rectificarTexto(input("Nuevo nombre: ").strip())
+                nuevoSemStr = input("Nuevo semestre (1-16): ").strip()
+                if not nuevoSemStr.isdigit():
+                    raise ValueError("El semestre debe ser numerico")
+                nuevoGrupo = seleccionarGrupoHerencia(False)
+                nuevoDetalle = pedirDetalleEspecificoGrupo(nuevoGrupo)
+                alumno.actualizarDatos(nuevoNombre, int(nuevoSemStr), nuevoGrupo.getNombreArea(), nuevoDetalle)
+                sincronizarGrupos(coordActual.obtenerTodosLosAlumnos())
+                print("Datos actualizados correctamente.")
+            elif subOp == "2":
+                act = input("Nuevo total de actividades: ").strip()
+                ment = input("Nuevo total de mentorias: ").strip()
+                oblig = input("Nuevo total de actividades obligatorias: ").strip()
+                rep = input("Nuevo total de materias reprobadas: ").strip()
+                if not (act.isdigit() and ment.isdigit() and oblig.isdigit() and rep.isdigit()):
+                    raise ValueError("Todos los campos de progreso deben ser enteros no negativos")
+                alumno.actualizarProgreso(int(act), int(ment), int(oblig), int(rep))
+                print("Progreso actualizado correctamente.")
+            else:
+                raise ValueError("Subopcion de actualizacion invalida")
+            gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+
+        elif opcion == 5:
+            #exclusivo para meterle eventos o requisitos academicos a los de GestionRe
+            criterioAl = input("Ingrese el ID o nombre del alumno GestionRe: ").strip()
+            alumno = coordActual.mostrarAlumno(criterioAl)
+            if not isinstance(alumno, GestionRe):
+                raise ValueError("El alumno seleccionado no pertenece a la modalidad GestionRe")
+            print("1.- Agregar nuevo requisito (Evento o Academico)")
+            print("2.- Marcar requisito existente como completado/pendiente")
+            accionReq = input("Seleccione accion (1 o 2): ").strip()
+            if accionReq == "1":
+                tipoReq = input("Tipo de requisito (1: Evento / 2: Academico): ").strip()
+                nomAct = rectificarTexto(input("Nombre del requisito: ").strip())
+                perReq = input("Periodo: ").strip()
+                completadoIn = input("¿Ya esta completado? (S/N): ").strip().upper()
+                if completadoIn not in ("S", "N"):
+                    raise ValueError("Debe indicar S o N para el estado del requisito")
+                estadoBool = True if completadoIn == "S" else False
+
+                if tipoReq == "1":
+                    fechaEv = input("Fecha del evento (DD/MM/AAAA): ").strip()
+                    req = RequisitoEvento(nomAct, perReq, fechaEv, estadoBool)
+                elif tipoReq == "2":
+                    calMinStr = input("Calificacion minima requerida (0-100): ").strip()
+                    if not calMinStr.replace(".", "", 1).isdigit():
+                        raise ValueError("La calificacion minima debe ser un numero valido")
+                    req = RequisitoAcademico(nomAct, perReq, float(calMinStr), estadoBool)
+                else:
+                    raise ValueError("Tipo de requisito invalido, debe ser 1 o 2")
+
+                alumno.agregarRequisito(req)
+                gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+                print("Requisito agregado y guardado:", req)
+            elif accionReq == "2":
+                reqs = alumno.obtenerRequisitos()
+                if len(reqs) == 0:
+                    raise ValueError("Este alumno no tiene requisitos especiales registrados")
+                idx = 1
+                for r in reqs:
+                    print(f"{idx}.- {r}")
+                    idx += 1
+                numReqStr = input("Numero del requisito a cambiar: ").strip()
+                if not numReqStr.isdigit():
+                    raise ValueError("Debe ingresar un numero valido")
+                numReq = int(numReqStr)
+                if numReq < 1 or numReq > len(reqs):
+                    raise ValueError("Numero de requisito fuera de rango")
+                nuevoEst = input("¿Marcar como completado? (S/N): ").strip().upper()
+                if nuevoEst not in ("S", "N"):
+                    raise ValueError("Debe responder S o N")
+                reqs[numReq - 1].registrarAvance(True if nuevoEst == "S" else False)
+                gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+                print("Estado del requisito actualizado:", reqs[numReq - 1])
+            else:
+                raise ValueError("Opcion no valida")
+
+        elif opcion == 6:
+            #imprime todos los que ya tienen todo listo para graduarse
+            cumplidos = coordActual.mostrarAlumnosCumplimiento()
+            if len(cumplidos) == 0:
+                print("Ningun alumno cumple aun con todos los requisitos de graduacion.")
+            else:
+                print("\n--- Alumnos Listos para Graduarse ---")
+                for a in cumplidos:
+                    print(a, "|", a.mostrarProgreso())
+
+        elif opcion == 7:
+            #imprime los que todavia tienen pendientes y que cosas les faltan
+            pendientes = coordActual.mostrarAlumnosConRequisitosPendientes()
+            if len(pendientes) == 0:
+                print("No hay alumnos con requisitos pendientes.")
+            else:
+                print("\n--- Alumnos con Requisitos Pendientes ---")
+                for a in pendientes:
+                    faltantes = ", ".join(a.obtenerPendientes())
+                    print(f"{a.getId()} | {a.getNombre()} ({a.getArea()} - {a.getDetalleGrupo()}) | Faltan: {faltantes}")
+
+        elif opcion == 8:
+            #muestra un resumen de todo el sistema alumnos grupos y cuentas
+            todos = coordActual.obtenerTodosLosAlumnos()
+            sincronizarGrupos(todos)
+            print("\n================ VISTA GENERAL COMPLETA DEL SISTEMA ================")
+            print(f"Coordinador Activo: {coordActual}")
+            print(f"Limites Minimos Vigentes -> Actividades: {limiteActividades} | Mentorias: {limiteMentorias} | Obligatorias: {limiteActividadesObligatorias}")
+
+            misAlumnos = coordActual.mostrarAlumnosPorMisGrupos()
+            print(f"\n--- Alumnos en los Grupos que Coordinas ({coordActual.area}): {len(misAlumnos)} ---")
+            if len(misAlumnos) == 0:
+                print("No hay alumnos inscritos en tus grupos coordinados.")
+            else:
+                for alMio in misAlumnos:
+                    print(" ", alMio.mostrarProgreso())
+
+            print(f"\n--- Todos los Alumnos de la Universidad ({len(todos)}) ---")
+            for a in todos:
+                print(" ", a)
+                if isinstance(a, GestionRe):
+                    print(f"    -> Directivo GestionRe | Avance Requisitos: {a.calcularPorcentajeAvance():.1f}% | Total Reqs: {len(a.obtenerRequisitos())}")
+                    for r in a.obtenerRequisitos():
+                        print(f"       * {r}")
+
+            print("\n--- Estado de Todos los Grupos Estudiantiles (Herencia AreaRE) ---")
+            for grp in gruposDisponibles.values():
+                print(" ", grp)
+                for miembro in grp.getAlumnos():
+                    print(f"    -> ID: {miembro.getId()} | Nombre: {miembro.getNombre()} | Detalle: {miembro.getDetalleGrupo()} | Rol: {miembro.getGestionRe()}")
+
+            print(f"\n--- Cuentas de Coordinadores Registradas ({len(cuentas)}) ---")
+            for c in cuentas:
+                print(" ", c)
+
+        elif opcion == 9:
+            #para cuando el coordinador quiere agregarse otro grupo mas a su cuenta
+            print("Grupos que coordinas actualmente:", coordActual.area)
+            grupoNuevo = seleccionarGrupoHerencia(True)
+            agregado = coordActual.agregarGrupoCoordinado(grupoNuevo.getNombreArea())
+            for c in cuentas:
+                if c.idNombre == coordActual.idNombre:
+                    c.agregarGrupoCoordinado(grupoNuevo.getNombreArea())
+            gestorGlobal.guardarTodasLasCuentas(cuentas)
+            if agregado:
+                print(f"Grupo '{grupoNuevo.getNombreArea()}' agregado a tu coordinacion. Ahora coordinas: {coordActual.area}")
+            else:
+                print(f"Configuracion de '{grupoNuevo.getNombreArea()}' actualizada. Tus grupos son: {coordActual.area}")
+
+        elif opcion == 10:
+            #cambia las variables globales de los limites minimos
+            print(f"Valores actuales -> Actividades: {limiteActividades}, Mentorias: {limiteMentorias}, Obligatorias: {limiteActividadesObligatorias}")
+            nAct = input("Nuevo minimo de actividades: ").strip()
+            nMent = input("Nuevo minimo de mentorias: ").strip()
+            nOblig = input("Nuevo minimo de actividades obligatorias: ").strip()
+            if not (nAct.isdigit() and nMent.isdigit() and nOblig.isdigit()):
+                raise ValueError("Los limites minimos deben ser numeros enteros no negativos")
+            limiteActividades = int(nAct)
+            limiteMentorias = int(nMent)
+            limiteActividadesObligatorias = int(nOblig)
+            print(f"Nuevas metas minimas actualizadas -> Act: {limiteActividades} | Ment: {limiteMentorias} | Oblig: {limiteActividadesObligatorias}")
+
+        elif opcion == 11:
+            #para revisar como estan escritos los archivos txt desde el menu
+            print("1.- Ver archivo alumnos.txt")
+            print("2.- Ver archivo cuentas.txt")
+            print("3.- Ver archivo logErrores.txt")
+            print("4.- Ver los 3 archivos completos")
+            opVer = input("Seleccione una opcion (1-4): ").strip()
+            gestorGlobal.mostrarArchivosSistema(opVer)
+
+        elif opcion == 12:
+            #guarda todo y regresa al menu de inicio de sesion
+            gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+            gestorGlobal.guardarTodasLasCuentas(cuentas)
+            coordActual = ""
+            estadoRegistrado = 1
+            print("Sesion cerrada correctamente.")
+
+        elif opcion == 13:
+            #guarda todo y cierra el programa por completo
+            gestorGlobal.guardarAlumnos(coordActual.obtenerTodosLosAlumnos())
+            gestorGlobal.guardarTodasLasCuentas(cuentas)
+            indiceActual = 0
+            print("Saliendo del sistema...")
+
+    except ValueError as e:
+        print(f"[ERROR DE VALIDACION]: {e}")
+        enviarError(e)
+    except Exception as e:
+        print(f"[ERROR]: {e}")
+        enviarError(e)
+
+    return indiceActual, estadoRegistrado, coordActual
+
+
+def main():
+    #cargamos los datos iniciales y mantenemos prendido el programa con el while
+    indice = indiceWhile
+    estadoReg = registrado
+    coord = coordinadorActual
+    alumnosIniciales = gestorGlobal.cargarAlumnos()
+    sincronizarGrupos(alumnosIniciales)
+    cuentas.clear()
+    cuentas.extend(gestorGlobal.cargarCuentas(alumnosIniciales))
+
+    while indice != 0:
+        if estadoReg == 1:
+            indice, estadoReg, coord = menuUsuarioNoRegistrado(indice, estadoReg, coord)
+        else:
+            indice, estadoReg, coord = menuUsuarioRegistrado(indice, estadoReg, coord)
+
+
+main()

@@ -1,0 +1,3 @@
+02-11-2026 23:13:36 | ERROR | ValueError: El ID del coordinador no puede estar vacio y debe contener numeros
+02-11-2026 23:13:43 | ERROR | ValueError: El ID del coordinador no puede estar vacio y debe contener numeros
+02-11-2026 23:15:16 | ERROR | ValueError: Alumno '1' no encontrado

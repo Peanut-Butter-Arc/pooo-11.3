@@ -1,1 +1,2 @@
-1|1|1|ASUA|1|1|1|1|1|ASUA
+A001|Ana Lopez|7|Sociedades de alumnos|Miembro General|0|8|2|2|True
+A002|Luis Perez|6|FESAL|Directivo GestionRe|1|5|1|1|False|2026-2027|Activo|SemestresAdmin:1

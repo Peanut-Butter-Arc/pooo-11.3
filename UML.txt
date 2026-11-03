@@ -1,0 +1,27 @@
+AreaRE
+|- ASUA
+|  |- PresidenciasASUA
+|- FESAL
+|- ADEFA
+|- SociedadesDeAlumnos
+|- AsociacionesPorEstado
+|- ClubsAnahuac
+
+Alumno
+|- GestionRe
+
+Requisito
+|- RequisitoCantidad
+|- RequisitoEvento
+|- RequisitoAcademico
+
+OTRAS CLASES:
+- Coordinador
+- GestorArchivos
+
+RELACIONES IMPORTANTES:
+- AreaRE contiene una lista de alumnos.
+- Coordinador administra un catalogo de alumnos.
+- GestionRe contiene una lista de requisitos especiales.
+- GestorArchivos guarda y reconstruye alumnos y registra errores.
+

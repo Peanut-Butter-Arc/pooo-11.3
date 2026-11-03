@@ -1,0 +1,6 @@
+2026-11-03 05:36:29 | ERROR | FileNotFoundError: [Errno 2] No such file or directory: '/mnt/data/ProyectoRE_RespetandoCodigoCompanero/archivo_que_no_existe.txt'
+2026-11-03 05:36:29 | ERROR | ValueError: El semestre debe estar entre 1 y 16
+2026-11-03 05:36:29 | ERROR | TypeError: La cantidad realizada debe ser un numero entero
+2026-11-03 05:36:43 | ERROR | FileNotFoundError: [Errno 2] No such file or directory: '/mnt/data/ProyectoRE_RespetandoCodigoCompanero/archivo_que_no_existe.txt'
+2026-11-03 05:36:43 | ERROR | ValueError: El semestre debe estar entre 1 y 16
+2026-11-03 05:36:43 | ERROR | TypeError: La cantidad realizada debe ser un numero entero

@@ -1,3 +1,0 @@
-A001|Ana Lopez|7|Sociedades de alumnos|Miembro General|0|8|2|2|True
-A002|Luis Perez|6|FESAL|Directivo GestionRe|1|5|1|1|False|2026-2027|Activo|SemestresAdmin:1|REQ_EVT~Seminario intermedio~2026-2027~15/10/2026~True;REQ_ACAD~Situacion academica~2026-2027~70.0~False
-383838|337733|1|FESAL|Miembro General|4|1|2|3|True
